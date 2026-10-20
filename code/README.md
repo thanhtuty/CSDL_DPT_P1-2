@@ -1,113 +1,107 @@
-# Code chuẩn hoá ảnh & trích rút đặc trưng vân tay
+# Code chuẩn hóa ảnh và trích rút đặc trưng vân tay
 
-Bộ mã nguồn dùng cho Câu 1 (xây dựng bộ dữ liệu) và Câu 2 (bộ thuộc tính) của bài tập lớn
-*Hệ CSDL Đa phương tiện — Xây dựng hệ CSDL lưu trữ và tìm kiếm ảnh vân tay*.
-
----
+Bộ mã nguồn dùng cho Câu 1 (xây dựng bộ dữ liệu) và Câu 2 (bộ thuộc tính) của bài tập lớn *Hệ CSDL Đa phương tiện — Xây dựng hệ CSDL lưu trữ và tìm kiếm ảnh vân tay*.
 
 ## 1. Các file
 
 | File | Vai trò |
 |---|---|
-| `config.py` | **Cấu hình đường dẫn và tham số — sửa file này trước khi chạy.** |
-| `preprocess.py` | Chuẩn hoá ảnh: phân vùng → căn giữa trọng tâm → cắt 256×256 → chuẩn hoá cường độ sáng |
-| `features.py` | Thư viện định nghĩa toàn bộ đặc trưng (không chạy trực tiếp) |
-| `extract_all.py` | Trích rút đặc trưng trên toàn bộ ảnh đã chuẩn hoá, xuất vector + `records.json` |
-| `dump_minutiae.py` | Xuất toạ độ + hướng của từng minutia ra `minutiae.npz` |
-| `viz.py` | Vẽ trường hướng / điểm kỳ dị / skeleton / minutiae để kiểm chứng bằng mắt |
+| `config.py` | Cấu hình đường dẫn dữ liệu và tham số; cần sửa `FVC_DBS` trước khi chạy. |
+| `preprocess.py` | Phân vùng, căn giữa, cắt ảnh 256×256, chuẩn hóa cường độ sáng. |
+| `features.py` | Thư viện hàm trích xuất; không chạy trực tiếp. |
+| `extract_all.py` | Trích xuất đặc trưng trên toàn bộ ảnh chuẩn hóa; lưu vector, bản ghi JSON và CSV đầy đủ. |
+| `dump_minutiae.py` | Xuất tọa độ và hướng minutiae ra `minutiae.npz` khi cần đối sánh riêng. |
+| `viz.py` | Trực quan hóa trường hướng, điểm kỳ dị, Gabor, skeleton và minutiae. |
 
-## 2. Yêu cầu môi trường
+## 2. Môi trường
 
-```
-python >= 3.9
+Yêu cầu Python >= 3.9 và các thư viện:
+
+```bash
 pip install numpy opencv-python scikit-image
 ```
 
 ## 3. Cách chạy
 
-**Bước 0.** Mở `config.py`, sửa biến `FVC_DBS` trỏ tới thư mục `Dbs` của FVC2000 trên máy bạn
-(thư mục chứa `Db1_a`, `Db2_a`, …). Mặc định đang trỏ đúng vào thư mục trên máy hiện tại.
+Mở `config.py` và sửa `FVC_DBS` thành đường dẫn tới thư mục `Dbs` của FVC2000 trên máy đang chạy. Thư mục này cần chứa `Db1_a`, `Db2_a`, …
 
-**Bước 1 — chuẩn hoá ảnh** (≈ 20 giây cho 1.040 ảnh)
+Chạy trong thư mục `code`:
 
-```
+```bash
 python preprocess.py
-```
-
-Sinh ra `ketqua/dataset/DB1/`, `ketqua/dataset/DB2/` chứa ảnh PNG 256×256, kèm file mặt nạ
-`*_mask.npy` và `ketqua/dataset/manifest.json`.
-
-**Bước 2 — trích rút đặc trưng** (≈ 4 phút cho 1.040 ảnh, chạy đa tiến trình)
-
-```
 python extract_all.py
 ```
 
-Sinh ra trong `ketqua/feat/`:
+Nếu cần file minutiae dạng một mảng điểm cho từng ảnh, chạy thêm:
 
-| File | Nội dung |
-|---|---|
-| `records.json` | Mỗi ảnh một bản ghi: kiểu hoa tay, số core/delta, chu kỳ vân (px và mm), số minutiae theo loại, LBP, GLCM, chất lượng |
-| `orient.npy` | Ma trận (N, 512) — trường hướng, lưới 16×16, dạng `cos2θ ‖ sin2θ` có trọng số |
-| `fingercode.npy` | Ma trận (N, 512) — FingerCode: 4 vành × 16 ô quạt × 8 hướng Gabor |
-| `lbp.npy` | Ma trận (N, 10) — lược đồ LBP uniform |
-
-**Bước 3 — xuất toạ độ minutiae** (≈ 3 phút, chỉ cần nếu làm so khớp cấp 2)
-
-```
+```bash
 python dump_minutiae.py
 ```
 
-Sinh ra `ketqua/feat/minutiae.npz`. Mỗi ảnh là một mảng `(n, 4)`: `[y, x, góc_radian, loại]`
-với loại `0` = điểm kết thúc vân, `1` = điểm rẽ nhánh.
+`extract_all.py` đọc ảnh PNG và mask do `preprocess.py` tạo. Nếu thiếu ảnh PNG hoặc mask, chương trình báo lỗi và yêu cầu chạy bước tiền xử lý trước.
 
-**Kiểm chứng bằng mắt** (tuỳ chọn)
+## 4. Đầu ra
+
+Các kết quả được ghi trong `ketqua/`:
+
+### `ketqua/dataset/`
+
+- `DB1/`, `DB2/`: ảnh xám PNG 256×256.
+- `*_mask.npy`: mask nhị phân tương ứng từng ảnh.
+- `manifest.json`: thông tin nguồn, kích thước, vùng vân và trọng tâm.
+
+### `ketqua/feat/`
+
+| Tệp | Nội dung |
+|---|---|
+| `feature_values.csv` | Một dòng cho mỗi ảnh, có các thuộc tính scalar và toàn bộ giá trị vector/điểm. Các vector được lưu thành chuỗi JSON trong từng ô để giữ đủ số chiều. |
+| `records.json` | Bản ghi cấu trúc cho mỗi ảnh: hoa tay, tọa độ core/delta, chu kỳ, minutiae, LBP, GLCM và chất lượng. |
+| `orient.npy` | Ma trận `(N, 512)`, trường hướng gồm `cos(2θ)` và `sin(2θ)` có trọng số coherence và mask. |
+| `fingercode.npy` | Ma trận `(N, 512)`: 4 vành × 16 ô quạt × 8 hướng Gabor. |
+| `lbp.npy` | Ma trận `(N, 10)`: histogram LBP uniform. |
+| `ridge_frequency.npy` | Ma trận `(N, 256)`: bản đồ tần số đường vân 16×16 được làm phẳng theo từng ảnh. |
+| `minutiae.npz` | Tệp tùy chọn từ `dump_minutiae.py`; mỗi ảnh chứa mảng `(n, 4)` dạng `[y, x, góc_radian, loại]`, trong đó loại 0 là ending, 1 là bifurcation. |
+
+Trong `feature_values.csv`, các cột JSON là:
+
+- `singular_points_json`: danh sách điểm kỳ dị `[y, x, loại, số_điểm_gộp]`.
+- `minutiae_points_json`: danh sách minutiae `[y, x, góc_radian, mã_loại]`.
+- `orientation_vector_json`: vector trường hướng 512 giá trị.
+- `fingercode_vector_json`: vector FingerCode 512 giá trị.
+- `lbp_histogram_json`: histogram LBP 10 giá trị.
+- `ridge_frequency_map_json`: bản đồ tần số 256 giá trị.
+
+Các giá trị có thể được đọc như JSON, ví dụ trong Python:
 
 ```python
-import cv2, viz
-a = viz.analyse("ketqua/dataset/DB1/DB1_001_1.png")
-cv2.imwrite("kiemtra.png", viz.panel(a))
-print(a["sps"], a["per"], len(a["mins"]))
+import json
+import pandas as pd
+
+df = pd.read_csv("ketqua/feat/feature_values.csv")
+orientation = json.loads(df.loc[0, "orientation_vector_json"])
+minutiae = json.loads(df.loc[0, "minutiae_points_json"])
+print(df.loc[0, "name"], len(orientation), len(minutiae))
 ```
 
-Sinh ảnh 4 ô: trường hướng + điểm kỳ dị | ảnh tăng cường Gabor | skeleton | minutiae.
+Không dùng `feature_values.csv` để lưu riêng các tọa độ minutiae thành hàng độc lập; nếu cần bảng điểm cho truy vấn, có thể đọc `minutiae_points_json` hoặc dùng `minutiae.npz`.
 
-## 4. Đổi phạm vi bộ dữ liệu
+## 5. Đổi phạm vi dữ liệu
 
 Trong `config.py`:
 
-- `N_FINGERS = 65` → lấy ngón 1–65 mỗi CSDL = **1.040 ảnh** (đúng con số trong báo cáo).
-  Đặt `N_FINGERS = None` để lấy toàn bộ 100 ngón = 1.600 ảnh.
-- `DATABASES = [("Db1_a", "DB1"), ("Db2_a", "DB2")]` → thêm dòng `("Db3_a", "DB3")` nếu
-  muốn dùng thêm CSDL khác.
+- `N_FINGERS = 65`: lấy 65 ngón đầu tiên của mỗi CSDL, tổng cộng 1.040 ảnh.
+- `N_FINGERS = None`: lấy toàn bộ 100 ngón mỗi CSDL, tổng cộng 1.600 ảnh.
+- `DATABASES = [("Db1_a", "DB1"), ("Db2_a", "DB2")]`: có thể thêm CSDL khác nếu phù hợp.
 
-> **Lưu ý khi thêm DB3/DB4.** Code cắt một cửa sổ cố định 256 px = 13,0 mm vì DB1 và DB2
-> đều ở 500 dpi. DB4 chỉ "khoảng 500 dpi" nên tỉ lệ px/mm sẽ lệch nhẹ, làm chu kỳ vân
-> không còn so sánh trực tiếp được với DB1/DB2.
+DB1 và DB2 có độ phân giải 500 dpi nên 256 px tương ứng khoảng 13,0 mm. DB4 chỉ có độ phân giải xấp xỉ 500 dpi, vì vậy chu kỳ vân theo mm có thể lệch nhẹ nếu thêm nguồn đó.
 
-## 5. Ghi chú kỹ thuật
+## 6. Ghi chú kỹ thuật
 
-Ba chỗ dễ sai nhất khi cài lại từ đầu, đã xử lý sẵn trong code:
+1. Trường hướng là đại lượng modulo π; làm trơn bằng `cos(2θ)` và `sin(2θ)` để tránh lấy trung bình góc sai tại biên 0°/180°.
+2. Chỉ số Poincaré được chia cho `2π`: core xấp xỉ +1/2, delta xấp xỉ −1/2, whorl xấp xỉ +1.
+3. Tín hiệu x-signature được làm trơn trước khi tìm đỉnh để giảm đỉnh giả do nhiễu.
+4. Vector trường hướng hiện nhân `cos(2θ)` và `sin(2θ)` với coherence và mask. Các file `orient.npy` và `feature_values.csv` dùng cùng cách tính.
 
-1. **Trường hướng phải cộng dồn tensor cấu trúc, không lấy trung bình góc.** Hướng vân là đại
-   lượng modulo π: trung bình của 179° và 1° cho 90°, tức vuông góc với cả hai. Làm việc trên
-   góc nhân đôi (`cos2θ`, `sin2θ`) khử được nghịch lý này.
-2. **Chỉ số Poincaré chia cho 2π, không chia cho π.** Core = +1/2, delta = −1/2, whorl = +1.
-   Chia nhầm hệ số sẽ khiến mọi core bị gán nhãn whorl.
-3. **x-signature phải làm trơn trước khi tìm đỉnh.** Nhiễu hạt của cảm biến điện dung tạo đỉnh
-   giả xen giữa các đỉnh thật, làm chu kỳ đo được giảm một nửa (4,2 px thay vì 8,2 px).
+## 7. Số liệu tham chiếu
 
-## 6. Số liệu tham chiếu
-
-Chạy với `N_FINGERS = 65` trên FVC2000 DB1 + DB2 cho kết quả sau (để đối chiếu khi chạy lại):
-
-| Chỉ tiêu | DB1 | DB2 |
-|---|---|---|
-| Số ảnh | 520 | 520 |
-| Chu kỳ vân | 10,07 ± 0,67 px = 0,512 mm | 8,15 ± 0,46 px = 0,414 mm |
-| Số minutiae/ảnh | 35,2 ± 11,9 | 38,6 ± 11,5 |
-| Độ nhất quán hướng | 0,733 ± 0,061 | 0,642 ± 0,084 |
-| Tỉ lệ vùng vân tay | 92,6 % | 98,9 % |
-
-Phân bố hoa tay trên cả 1.040 ảnh: loop 655, whorl 177, arch 177, khác 31.
-Tổng số minutiae trích được: 38.371.
+Khi dùng `N_FINGERS = 65` trên FVC2000 DB1 + DB2, bộ dữ liệu gồm 520 ảnh mỗi nguồn, tổng 1.040 ảnh. README ban đầu ghi các số liệu tham chiếu về chu kỳ vân, minutiae, coherence và tỉ lệ vùng vân; kết quả thực tế có thể thay đổi theo phiên bản thư viện và môi trường chạy.
